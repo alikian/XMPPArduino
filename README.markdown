@@ -35,6 +35,5 @@ TODO:
 -----
 
 * Add some semblance of being able to receive messages
-* Simplify the dependency on Base64, put base64 directly in the Arduino-XMPP directory, perhaps.
 * Add the ability to connect using a complete jid, rather than the parts of one
 * Add the ability to send presence messages that aren't just 'I'm here'

@@ -1,11 +1,12 @@
 #ifndef _H_XMPP_CLIENT
 #define _H_XMPP_CLIENT
 
-#include <Base64.h>
-#include <Ethernet.h>
+#include <Base64C.h>
+#include <ESP8266WiFi.h>
 #include <string.h>
 #include <stdarg.h>
-#include <avr/pgmspace.h>
+#include <WiFiClient.h>
+
 
 enum XMPPState {
   INIT,
@@ -19,14 +20,20 @@ enum XMPPState {
 
 class XMPPClient {
     private:
-	Client client;
+		uint8_t *ip;
+		uint16_t port;
+	
 	char *username;
 	char *server;
 	char *password;
 	char *resource;
-	XMPPState state;
+	
 
-	int sendTemplate(const prog_char *strTemplate, int fillLen, ...);
+	XMPPState state;
+int sendTemplate(const char *temp_P) ;
+int sendTemplate(const char *temp_P, int fillLen, char *m1 ,char *m2) ;
+int sendTemplate(const char *temp_P, int fillLen, char *m1 ) ;
+	//int sendTemplate(const char *strTemplate, int fillLen, ...);
 
 	int openStream(char *server);
 	int authenticate(char *username, char *password);
@@ -38,8 +45,10 @@ class XMPPClient {
 
 
     public:
+		WiFiClient client;
 	XMPPClient();
 	XMPPClient(uint8_t *ip, uint16_t port);
+
 
 	int connect(char *username, char *server, char *resource, char *password);
 	int connect(char *jid, char *password);
@@ -48,7 +57,13 @@ class XMPPClient {
 	int sendPresence();
 
 	int close();
-
+	
+	// test variables for read
+	boolean skip;
+		String getData();
+	#define BUFSIZE 100
+	char clientline[BUFSIZE];
+	String msgString;
 };
 
 #endif /* _H_XMPP_CLIENT */

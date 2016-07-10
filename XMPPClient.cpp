@@ -1,21 +1,23 @@
 #include "XMPPClient.h"
 
+
+
 /****************/
 /* XMPP STANZAS */
 /***************/
-static const prog_char PROGMEM open_stream_template[] = "<stream:stream " 
+static const char PROGMEM open_stream_template[] = "<stream:stream " 
                              "xmlns='jabber:client' " 
                              "xmlns:stream='http://etherx.jabber.org/streams' " 
                              "to='%s' " 
                              "version='1.0'>";
 
-static const prog_char PROGMEM plain_auth_template[] = "<auth " 
+static const char PROGMEM plain_auth_template[] = "<auth " 
                             "xmlns='urn:ietf:params:xml:ns:xmpp-sasl' " 
                             "mechanism='PLAIN'>" 
                             "%s" 
                             "</auth>";
 
-static const prog_char PROGMEM bind_template[] = "<iq " 
+static const char PROGMEM bind_template[] = "<iq " 
                       "type='set' " 
                       "id='bind_1'>" 
                       "<bind " 
@@ -24,7 +26,7 @@ static const prog_char PROGMEM bind_template[] = "<iq "
                       "</bind>" 
                       "</iq>";
 
-static const prog_char PROGMEM session_request_template[] = "<iq " 
+static const char PROGMEM session_request_template[] = "<iq " 
                                  "to='%s' " 
                                  "type='set' " 
                                  "id='ard_sess'>" 
@@ -32,19 +34,18 @@ static const prog_char PROGMEM session_request_template[] = "<iq "
                                  "xmlns='urn:ietf:params:xml:ns:xmpp-session' />" 
                                  "</iq>";
 
-static const prog_char PROGMEM presence_template[] = "<presence>" 
+static const char PROGMEM presence_template[] = "<presence>" 
                           "<show/>" 
                           "</presence>";
                           
-static const prog_char PROGMEM message_template[] = "<message " 
+static const char PROGMEM message_template[] = "<message " 
                          "to='%s' " 
                          "xmlns='jabber:client' " 
                          "type='chat' " 
-                         "id='msg' " 
                          "xml:lang='en'>" 
                          "<body>%s</body>" 
                          "</message>";
-static const prog_char PROGMEM close_template[] = "<presence type='unavailable'/>"
+static const char PROGMEM close_template[] = "<presence type='unavailable'/>"
 			 "</stream:stream>";
 
 /********************/
@@ -65,13 +66,72 @@ XMPPTransitionTableEntry connTable[] = {{INIT, AUTH, "PLAIN"},
                                         {READY, WAIT, ""},
                                         {WAIT, WAIT, ""}};
 
-XMPPClient::XMPPClient() : client(0) {
+XMPPClient::XMPPClient()  {
     ;
 }
 
-XMPPClient::XMPPClient(uint8_t *ip, uint16_t port) : client(ip, port) {
+XMPPClient::XMPPClient(uint8_t *_ip, uint16_t _port)  {
+	ip = _ip;
+	port     = _port;
     ;
 }
+
+
+String XMPPClient::getData()
+{
+	skip = false;
+	int index = 0;
+	
+	while(client.available()) {
+		// read the bytes incoming from the client:
+	    char thisChar = client.read();
+	    // echo the bytes back to the client:
+	  if (thisChar == '<') {
+	      skip = true;
+	    }
+			if(!skip)
+			{
+		    
+		
+			//	Serial.print(thisChar);
+
+			        //  fill url the buffer
+			      
+			          clientline[index] = thisChar;
+			          index++;
+				
+			          //  if we run out of buffer, overwrite the end
+			          if(index >= BUFSIZE)
+			            index = BUFSIZE -1;
+				
+		
+			}
+			
+			
+			
+			
+	 	  if (thisChar == '>') {
+		      skip = false;
+		    }
+	    // echo the bytes to the server as well:
+	
+		if(!client.available())
+		{
+		
+			//Serial.println(clientline);
+		//	String(13, 8);
+				 msgString = String(clientline);
+		
+				  msgString = msgString.substring(0,index);
+						Serial.println(msgString);
+//					Serial.println(msgString2 + "aa");
+				//Serial.println(msgString2);
+				return msgString;
+		}
+	}
+	return "";
+}
+
 
 int XMPPClient::connect(char *username, char *server, char *resource, char *password) {
     boolean connected = false, error = false;
@@ -80,9 +140,10 @@ int XMPPClient::connect(char *username, char *server, char *resource, char *pass
     this->resource = resource;
     this->password = password;
 
-    while(!client.connect()) {
+    while(!client.connect(ip, port)) {
 	/* Retry connection every 1s and block until we're successful */
 	delay(1000);
+	Serial.print(".");
     }
 
     while(!connected && !error) {
@@ -90,6 +151,7 @@ int XMPPClient::connect(char *username, char *server, char *resource, char *pass
 	if(!client.connected()) {
 	    error = true;
 	    continue;
+			//Serial.println(".");
 	}
 
 	int ret;
@@ -150,6 +212,7 @@ int XMPPClient::bindResource(char *resource) {
 }
 
 int XMPPClient::openSession(char *server) {
+
   sendTemplate(session_request_template, strlen(server), server);
 }
 
@@ -158,33 +221,95 @@ int XMPPClient::sendMessage(char *recipientJid, char *message) {
 }
 
 int XMPPClient::sendPresence() {
-  sendTemplate(presence_template, 0);
+  sendTemplate(presence_template);
 }
 
 int XMPPClient::close() {
-  sendTemplate(close_template, 0);
+  sendTemplate(close_template);
 }
 
-int XMPPClient::sendTemplate(const prog_char *temp_P, int fillLen, ...) {
+
+int XMPPClient::sendTemplate(const char *temp_P ) {
   int tempLen = strlen_P(temp_P);
   char temp[tempLen];
-  char buffer[tempLen + fillLen];
-  va_list args;
+
+ 
+ 
 
   strcpy_P(temp, temp_P);
 
-  va_start(args, fillLen);
-  vsprintf(buffer, temp, args);
-  client.write(buffer);
+ 
+    Serial.println(temp);
+    client.write(temp);
 
   return 1;
 }
 
+int XMPPClient::sendTemplate(const char *temp_P, int fillLen, char *m1 ) {
+  int tempLen = strlen_P(temp_P);
+  char temp[tempLen];
+  char buffer[tempLen + fillLen];
+ 
+ 
+
+  strcpy_P(temp, temp_P);
+
+ 
+  	sprintf(buffer, temp, m1);
+   // sprintf(buffer, temp, );
+ 
+    Serial.println(buffer);
+    client.write(buffer);
+
+  return 1;
+}
+
+
+int XMPPClient::sendTemplate(const char *temp_P, int fillLen, char *m1,char *m2 ) {
+  int tempLen = strlen_P(temp_P);
+  char temp[tempLen];
+  char buffer[tempLen + fillLen];
+ 
+ 
+
+  strcpy_P(temp, temp_P);
+
+ 
+  	sprintf(buffer, temp, m1, m2);
+   // sprintf(buffer, temp, );
+ 
+    Serial.println(buffer);
+    client.write(buffer);
+
+  return 1;
+}
+/*
+//sendTemplate(open_stream_template, strlen(server), server);
+int XMPPClient::sendTemplate(const char *temp_P, int fillLen, ...) {
+  int tempLen = strlen_P(temp_P);
+  char temp[tempLen];
+  char buffer[tempLen + fillLen];
+  va_list args;
+  va_start(args, fillLen);
+
+  strcpy_P(temp, temp_P);
+
+  
+  sprintf(buffer, temp, args);
+ // sprintf(buffer, temp, );
+  Serial.println("xx: ");
+  Serial.print(fillLen);
+  Serial.println(buffer);
+  client.write(buffer);
+
+  return 1;
+}
+*/
 int XMPPClient::stateAction() {
- /*
- Serial.print("State = ");
- Serial.println(state);
- */
+ 
+// Serial.print("State = ");
+// Serial.println(state);
+ 
  switch(state) {
   case INIT:
     openStream(server);
@@ -235,7 +360,7 @@ void XMPPClient::processInput() {
       }
       buffer[i] = client.read();
       
-      
+//	Serial.print(buffer[i]);
       /* Ignore what we've read if it's an empty string */
       if(!strlen(buffer)) {
         continue;
@@ -266,3 +391,5 @@ void XMPPClient::processInput() {
     }
   }
 }
+
+
